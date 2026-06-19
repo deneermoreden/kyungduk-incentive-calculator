@@ -521,7 +521,7 @@
           <input id="newStaffSalary" type="number" value="150" step="1">
         </div>
         <div>
-          <label for="visitPoolStep">환수 3명 증가당 풀</label>
+          <label for="visitPoolStep">환수 3명 증가당 주간 풀</label>
           <input id="visitPoolStep" type="number" value="30" step="5">
         </div>
         <div>
@@ -557,7 +557,7 @@
     <section>
       <div class="section-head">
         <h2>환수 인센</h2>
-        <span class="note">급여+비급여 실제 방문을 카운트하고, 매출 증가는 보수적으로 급여 객단가만 적용합니다.</span>
+        <span class="note">주별 지급입니다. 월 손익 비교에서는 주간 풀을 30/7주로 환산합니다.</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -565,11 +565,11 @@
             <tr>
               <th>주당 일평균</th>
               <th class="mobile-hide">월 추가 방문</th>
-              <th class="mobile-hide">급여매출 증가</th>
-              <th>환수 인센 풀</th>
-              <th class="mobile-hide">인센 차감 후</th>
-              <th>최종 잔여</th>
-              <th class="mobile-hide">인센율</th>
+              <th class="mobile-hide">월 급여매출 증가</th>
+              <th>주간 풀</th>
+              <th class="mobile-hide">월환산 풀</th>
+              <th>월 최종 잔여</th>
+              <th class="mobile-hide">월환산 인센율</th>
             </tr>
           </thead>
           <tbody id="visitTierBody"></tbody>
@@ -611,9 +611,10 @@
               <th>시나리오</th>
               <th>일평균</th>
               <th>비급여</th>
-              <th class="mobile-hide">환수 인센</th>
-              <th class="mobile-hide">비급여 인센</th>
-              <th class="mobile-hide">총 인센</th>
+              <th class="mobile-hide">환수 주간</th>
+              <th class="mobile-hide">환수 월환산</th>
+              <th class="mobile-hide">비급여 월인센</th>
+              <th class="mobile-hide">총 월인센</th>
               <th class="mobile-hide">매출 증가</th>
               <th>최종 잔여</th>
             </tr>
@@ -712,6 +713,7 @@
         baseDailyVisits: constants.baseDailyVisits,
         insuredArpu: constants.insuredArpu,
         monthDays: constants.monthDays,
+        monthWeeks: constants.monthDays / 7,
         visitPoolStep: n("visitPoolStep"),
         noncoveredBaseline: n("noncoveredBaseline"),
         noncoveredRate: n("noncoveredRate") / 100,
@@ -747,22 +749,27 @@
       return Math.max(0, (amount - state.noncoveredBaseline) * state.noncoveredRate);
     }
 
+    function monthlyVisitPool(weeklyPool, state) {
+      return weeklyPool * state.monthWeeks;
+    }
+
     function renderSummary(state) {
       const tiers = visitTiers(state);
       const tier30 = tiers.find(tier => tier.visits === 30) || tiers[2];
       const visit30Revenue = visitRevenueIncrease(30, state);
-      const net30 = visit30Revenue - tier30.pool - state.fixedIncrease;
+      const tier30MonthlyPool = monthlyVisitPool(tier30.pool, state);
+      const net30 = visit30Revenue - tier30MonthlyPool - state.fixedIncrease;
       const noncovered2200 = noncoveredPool(2200, state);
       const noncovered3000 = noncoveredPool(3000, state);
       const items = [
-        { label: "30명 달성 후 잔여", value: fmtM(net30, 1), tone: net30 >= 0 ? "good" : "warn" },
+        { label: "30명 달성 월잔여", value: fmtM(net30, 1), tone: net30 >= 0 ? "good" : "warn" },
+        { label: "30명 환수 월환산", value: fmtM(tier30MonthlyPool, 1), tone: "warn" },
         { label: "3.5인 고정급 증가", value: fmtM(state.fixedIncrease, 0), tone: state.fixedIncrease > 0 ? "warn" : "good" },
-        { label: "비급여 2,200 인센", value: fmtM(noncovered2200, 1), tone: "" },
-        { label: "비급여 3,000 인센", value: fmtM(noncovered3000, 1), tone: "" },
+        { label: "비급여 2,200 월인센", value: fmtM(noncovered2200, 1), tone: "" },
+        { label: "비급여 3,000 월인센", value: fmtM(noncovered3000, 1), tone: "" },
         { label: "현재 고정급", value: fmtM(state.currentFixed, 0), tone: "" },
         { label: "3.5인 고정급", value: fmtM(state.newFixed, 0), tone: "warn" },
-        { label: "환수 3명당 풀", value: fmtM(state.visitPoolStep, 0), tone: "" },
-        { label: "비급여 기준선", value: fmtM(state.noncoveredBaseline, 0), tone: "" }
+        { label: "환수 3명당 주간 풀", value: fmtM(state.visitPoolStep, 0), tone: "" }
       ];
 
       document.getElementById("summaryMetrics").innerHTML = items.map(item => `
@@ -780,8 +787,12 @@
         ["현재 일평균 방문", `${constants.baseDailyVisits}명`, "12주차 대시보드 기준"],
         ["급여 방문 객단가", `${constants.insuredArpu.toLocaleString("ko-KR")}원`, "보험수입 / 실제 방문"],
         ["월 환산 일수", `${constants.monthDays}일`, "월 매출 증가 환산"],
+        ["월 환산 주수", `${state.monthWeeks.toFixed(2)}주`, "환수 인센 월 손익 환산"],
+        ["환수 지급 주기", "주별 지급", "주간 실적 기준"],
         ["환수 구간", tiers.map(tier => `${tier.visits}`).join("/") + "명", "주당 일평균 실제 방문"],
-        ["환수 풀", tiers.map(tier => `${tier.pool}`).join("/") + "만원", "3.5인 전체 월 인센 풀"],
+        ["주간 환수 풀", tiers.map(tier => `${tier.pool}`).join("/") + "만원", "3.5인 전체 주간 인센 풀"],
+        ["월환산 환수 풀", tiers.map(tier => `${monthlyVisitPool(tier.pool, state).toFixed(1)}`).join("/") + "만원", "30/7주 환산"],
+        ["비급여 지급 주기", "월별 지급", "월 비급여 초과분 기준"],
         ["비급여 기준선", fmtM(state.noncoveredBaseline, 0), "초과분만 인센 계산"],
         ["비급여 지급률", fmtPct(state.noncoveredRate * 100), "초과분 기준"],
         ["비급여 재점검", fmtM(state.reviewThreshold, 0), "기준선/원가율/제외항목 확인"],
@@ -799,17 +810,18 @@
     function renderVisitTiers(state) {
       document.getElementById("visitTierBody").innerHTML = visitTiers(state).map(tier => {
         const revenue = visitRevenueIncrease(tier.visits, state);
-        const afterIncentive = revenue - tier.pool;
+        const monthlyPool = monthlyVisitPool(tier.pool, state);
+        const afterIncentive = revenue - monthlyPool;
         const afterFixed = afterIncentive - state.fixedIncrease;
-        const rate = tier.pool / revenue * 100;
+        const rate = monthlyPool / revenue * 100;
         return `
           <tr>
             <td data-label="주당 일평균">${tier.visits}명</td>
             <td class="mobile-hide" data-label="월 추가 방문">${extraVisits(tier.visits, state).toFixed(0)}명</td>
-            <td class="mobile-hide" data-label="급여매출 증가">${fmtM(revenue)}</td>
-            <td data-label="환수 인센 풀">${fmtM(tier.pool, 0)}</td>
-            <td class="mobile-hide ${signedClass(afterIncentive)}" data-label="인센 차감 후">${fmtM(afterIncentive)}</td>
-            <td class="${signedClass(afterFixed)}" data-label="최종 잔여">${fmtM(afterFixed)}</td>
+            <td class="mobile-hide" data-label="월 급여매출 증가">${fmtM(revenue)}</td>
+            <td data-label="주간 풀">${fmtM(tier.pool, 0)}</td>
+            <td class="mobile-hide ${signedClass(-monthlyPool)}" data-label="월환산 풀">${fmtM(monthlyPool)}</td>
+            <td class="${signedClass(afterFixed)}" data-label="월 최종 잔여">${fmtM(afterFixed)}</td>
             <td class="mobile-hide" data-label="인센율">${fmtPct(rate)}</td>
           </tr>
         `;
@@ -847,17 +859,19 @@
         const noncoveredIncrease = Math.max(0, scenario.noncovered - state.noncoveredBaseline);
         const revenueIncrease = visitRevenue + noncoveredIncrease;
         const visitPool = incentivePoolForVisits(scenario.visits, state);
+        const visitMonthlyPool = monthlyVisitPool(visitPool, state);
         const noncoveredIncentive = noncoveredPool(scenario.noncovered, state);
-        const totalIncentive = visitPool + noncoveredIncentive;
+        const totalIncentive = visitMonthlyPool + noncoveredIncentive;
         const net = revenueIncrease - totalIncentive - state.fixedIncrease;
         return `
           <tr>
             <td data-label="시나리오">${scenario.name}</td>
             <td data-label="일평균">${scenario.visits}명</td>
             <td data-label="비급여">${fmtM(scenario.noncovered, 0)}</td>
-            <td class="mobile-hide" data-label="환수 인센">${fmtM(visitPool, 0)}</td>
-            <td class="mobile-hide" data-label="비급여 인센">${fmtM(noncoveredIncentive, 1)}</td>
-            <td class="mobile-hide" data-label="총 인센">${fmtM(totalIncentive, 1)}</td>
+            <td class="mobile-hide" data-label="환수 주간">${fmtM(visitPool, 0)}</td>
+            <td class="mobile-hide" data-label="환수 월환산">${fmtM(visitMonthlyPool, 1)}</td>
+            <td class="mobile-hide" data-label="비급여 월인센">${fmtM(noncoveredIncentive, 1)}</td>
+            <td class="mobile-hide" data-label="총 월인센">${fmtM(totalIncentive, 1)}</td>
             <td class="mobile-hide" data-label="매출 증가">${fmtM(revenueIncrease, 1)}</td>
             <td class="${signedClass(net)}" data-label="최종 잔여">${fmtM(net, 1)}</td>
           </tr>
@@ -868,16 +882,17 @@
     function summaryText(state) {
       const tier30Revenue = visitRevenueIncrease(30, state);
       const tier30Pool = state.visitPoolStep * 3;
-      const tier30Net = tier30Revenue - tier30Pool - state.fixedIncrease;
+      const tier30MonthlyPool = monthlyVisitPool(tier30Pool, state);
+      const tier30Net = tier30Revenue - tier30MonthlyPool - state.fixedIncrease;
       const noncovered2200 = noncoveredPool(2200, state);
       return [
         "경덕 직원 급여/인센 계산 요약",
         "",
         `고정급: 현재 ${fmtM(state.currentFixed, 0)} -> 3.5인 ${fmtM(state.newFixed, 0)} / 증가 ${fmtM(state.fixedIncrease, 0)}`,
-        `환수 인센: 주당 일평균 24/27/30/33/36/39명 = 월 풀 ${state.visitPoolStep}/${state.visitPoolStep * 2}/${state.visitPoolStep * 3}/${state.visitPoolStep * 4}/${state.visitPoolStep * 5}/${state.visitPoolStep * 6}만원`,
-        `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 ${fmtM(tier30Pool, 0)}과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
-        `비급여 인센: ${fmtM(state.noncoveredBaseline, 0)} 초과분의 ${(state.noncoveredRate * 100).toFixed(0)}%, 월 ${fmtM(state.reviewThreshold, 0)} 이상이면 기준 재점검`,
-        `비급여 2,200만원 기준 인센 풀 ${fmtM(noncovered2200, 1)}`
+        `환수 인센: 주별 지급. 주당 일평균 24/27/30/33/36/39명 = 주간 풀 ${state.visitPoolStep}/${state.visitPoolStep * 2}/${state.visitPoolStep * 3}/${state.visitPoolStep * 4}/${state.visitPoolStep * 5}/${state.visitPoolStep * 6}만원`,
+        `일평균 30명 기준: 월 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 주간 풀 ${fmtM(tier30Pool, 0)}(월환산 ${fmtM(tier30MonthlyPool, 1)})과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
+        `비급여 인센: 월별 지급. ${fmtM(state.noncoveredBaseline, 0)} 초과분의 ${(state.noncoveredRate * 100).toFixed(0)}%, 월 ${fmtM(state.reviewThreshold, 0)} 이상이면 기준 재점검`,
+        `비급여 2,200만원 기준 월 인센 풀 ${fmtM(noncovered2200, 1)}`
       ].join("\n");
     }
 
