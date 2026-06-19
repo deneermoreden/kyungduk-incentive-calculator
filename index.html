@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>경덕 급여/인센 변수 계산기</title>
   <style>
     :root {
@@ -250,6 +251,10 @@
       color: var(--muted);
     }
 
+    .mobile-only {
+      display: none;
+    }
+
     .copy-output {
       margin: 0;
       padding: 14px 16px;
@@ -389,10 +394,18 @@
         grid-template-columns: 1fr 1fr;
       }
 
-      .grid,
-      .summary,
       .checklist {
         grid-template-columns: 1fr;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
       }
 
       .section-head {
@@ -408,11 +421,11 @@
 
       .metric {
         min-height: 0;
-        padding: 11px 12px;
+        padding: 10px;
       }
 
       .metric .value {
-        font-size: 20px;
+        font-size: 18px;
       }
 
       h1 {
@@ -420,56 +433,36 @@
       }
 
       .table-wrap {
-        overflow: visible;
+        overflow-x: auto;
       }
 
       table {
         min-width: 0;
-        border-collapse: separate;
-        border-spacing: 0 10px;
-        font-size: 13px;
+        font-size: 12px;
       }
 
-      thead {
+      th,
+      td {
+        padding: 8px 7px;
+        white-space: nowrap;
+      }
+
+      th.mobile-hide,
+      td.mobile-hide {
         display: none;
       }
 
-      tbody,
-      tr,
-      td {
-        display: block;
-        width: 100%;
-      }
-
-      tr {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        overflow: hidden;
-      }
-
-      td {
-        min-height: 36px;
-        border-bottom: 1px solid #eef1f4;
-        padding: 8px 10px 8px 44%;
-        text-align: right;
+      #constantsBody td {
         white-space: normal;
-        position: relative;
       }
 
-      td:last-child {
-        border-bottom: 0;
+      .pill {
+        padding: 2px 6px;
+        font-size: 11px;
       }
 
-      td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        top: 8px;
-        width: 38%;
-        color: var(--muted);
-        font-size: 12px;
-        text-align: left;
+      .mobile-only {
+        display: inline;
       }
 
       .copy-output {
@@ -553,7 +546,7 @@
             <tr>
               <th>구분</th>
               <th>값</th>
-              <th>의미</th>
+              <th class="mobile-hide">의미</th>
             </tr>
           </thead>
           <tbody id="constantsBody"></tbody>
@@ -571,12 +564,12 @@
           <thead>
             <tr>
               <th>주당 일평균</th>
-              <th>월 추가 방문</th>
-              <th>급여매출 증가</th>
+              <th class="mobile-hide">월 추가 방문</th>
+              <th class="mobile-hide">급여매출 증가</th>
               <th>환수 인센 풀</th>
-              <th>인센 차감 후</th>
-              <th>고정급 증가까지 차감</th>
-              <th>인센율</th>
+              <th class="mobile-hide">인센 차감 후</th>
+              <th>최종 잔여</th>
+              <th class="mobile-hide">인센율</th>
             </tr>
           </thead>
           <tbody id="visitTierBody"></tbody>
@@ -594,11 +587,11 @@
           <thead>
             <tr>
               <th>월 비급여</th>
-              <th>초과분</th>
+              <th class="mobile-hide">초과분</th>
               <th>인센 풀</th>
               <th>주5 직원 1인</th>
               <th>주3 직원 1인</th>
-              <th>메모</th>
+              <th class="mobile-hide">메모</th>
             </tr>
           </thead>
           <tbody id="noncoveredBody"></tbody>
@@ -618,11 +611,11 @@
               <th>시나리오</th>
               <th>일평균</th>
               <th>비급여</th>
-              <th>환수 인센</th>
-              <th>비급여 인센</th>
-              <th>총 인센</th>
-              <th>매출 증가</th>
-              <th>고정급/인센 차감 후</th>
+              <th class="mobile-hide">환수 인센</th>
+              <th class="mobile-hide">비급여 인센</th>
+              <th class="mobile-hide">총 인센</th>
+              <th class="mobile-hide">매출 증가</th>
+              <th>최종 잔여</th>
             </tr>
           </thead>
           <tbody id="scenarioBody"></tbody>
@@ -798,7 +791,7 @@
         <tr>
           <td data-label="구분">${row[0]}</td>
           <td data-label="값">${row[1]}</td>
-          <td data-label="의미">${row[2]}</td>
+          <td class="mobile-hide" data-label="의미">${row[2]}</td>
         </tr>
       `).join("");
     }
@@ -812,12 +805,12 @@
         return `
           <tr>
             <td data-label="주당 일평균">${tier.visits}명</td>
-            <td data-label="월 추가 방문">${extraVisits(tier.visits, state).toFixed(0)}명</td>
-            <td data-label="급여매출 증가">${fmtM(revenue)}</td>
+            <td class="mobile-hide" data-label="월 추가 방문">${extraVisits(tier.visits, state).toFixed(0)}명</td>
+            <td class="mobile-hide" data-label="급여매출 증가">${fmtM(revenue)}</td>
             <td data-label="환수 인센 풀">${fmtM(tier.pool, 0)}</td>
-            <td data-label="인센 차감 후" class="${signedClass(afterIncentive)}">${fmtM(afterIncentive)}</td>
-            <td data-label="고정급까지 차감" class="${signedClass(afterFixed)}">${fmtM(afterFixed)}</td>
-            <td data-label="인센율">${fmtPct(rate)}</td>
+            <td class="mobile-hide ${signedClass(afterIncentive)}" data-label="인센 차감 후">${fmtM(afterIncentive)}</td>
+            <td class="${signedClass(afterFixed)}" data-label="최종 잔여">${fmtM(afterFixed)}</td>
+            <td class="mobile-hide" data-label="인센율">${fmtPct(rate)}</td>
           </tr>
         `;
       }).join("");
@@ -829,12 +822,12 @@
         const memo = amount >= state.reviewThreshold ? '<span class="pill">기준 재점검</span>' : "";
         return `
           <tr>
-            <td data-label="월 비급여">${fmtM(amount, 0)}</td>
-            <td data-label="초과분">${fmtM(Math.max(0, amount - state.noncoveredBaseline), 0)}</td>
+            <td data-label="월 비급여">${fmtM(amount, 0)} <span class="mobile-only">${memo}</span></td>
+            <td class="mobile-hide" data-label="초과분">${fmtM(Math.max(0, amount - state.noncoveredBaseline), 0)}</td>
             <td data-label="인센 풀">${fmtM(pool, 1)}</td>
             <td data-label="주5 직원 1인">${fmtM(pool * workdayShare.fullTime, 1)}</td>
             <td data-label="주3 직원 1인">${fmtM(pool * workdayShare.partTime, 1)}</td>
-            <td data-label="메모">${memo}</td>
+            <td class="mobile-hide" data-label="메모">${memo}</td>
           </tr>
         `;
       }).join("");
@@ -862,11 +855,11 @@
             <td data-label="시나리오">${scenario.name}</td>
             <td data-label="일평균">${scenario.visits}명</td>
             <td data-label="비급여">${fmtM(scenario.noncovered, 0)}</td>
-            <td data-label="환수 인센">${fmtM(visitPool, 0)}</td>
-            <td data-label="비급여 인센">${fmtM(noncoveredIncentive, 1)}</td>
-            <td data-label="총 인센">${fmtM(totalIncentive, 1)}</td>
-            <td data-label="매출 증가">${fmtM(revenueIncrease, 1)}</td>
-            <td data-label="차감 후" class="${signedClass(net)}">${fmtM(net, 1)}</td>
+            <td class="mobile-hide" data-label="환수 인센">${fmtM(visitPool, 0)}</td>
+            <td class="mobile-hide" data-label="비급여 인센">${fmtM(noncoveredIncentive, 1)}</td>
+            <td class="mobile-hide" data-label="총 인센">${fmtM(totalIncentive, 1)}</td>
+            <td class="mobile-hide" data-label="매출 증가">${fmtM(revenueIncrease, 1)}</td>
+            <td class="${signedClass(net)}" data-label="최종 잔여">${fmtM(net, 1)}</td>
           </tr>
         `;
       }).join("");
