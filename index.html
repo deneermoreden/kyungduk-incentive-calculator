@@ -547,41 +547,15 @@
 
     <section>
       <div class="section-head">
-        <h2>노무사 확인</h2>
-        <span class="note">확정 판단은 노무사에게 받아야 합니다.</span>
-      </div>
-      <div class="checklist">
-        <div class="check">
-          <strong>근로조건 변경 동의</strong>
-          <p>주6일에서 주5일로 바꾸고 월급을 낮추는 방식은 직원별 서면 동의와 변경합의서가 필요한지 확인.</p>
-        </div>
-        <div class="check">
-          <strong>인센 임금성</strong>
-          <p>환수/비급여 인센이 평균임금, 퇴직금, 4대보험, 건강보험 정산에 어떻게 반영되는지 확인.</p>
-        </div>
-        <div class="check">
-          <strong>임금명세서 계산방법</strong>
-          <p>월별 변동 상여 항목명과 계산식 표시 수준을 확인.</p>
-        </div>
-        <div class="check">
-          <strong>3개월 파일럿 문구</strong>
-          <p>파일럿 종료 후 재합의, 환수 39명 이후 재평가, 비급여 4,000만원 이상 재점검 문구의 효력 확인.</p>
-        </div>
-        <div class="check">
-          <strong>신규 주3일 직원</strong>
-          <p>근로일/근로일별 시간 명시, 주 15시간 여부에 따른 주휴/연차/퇴직금 처리 확인.</p>
-        </div>
-        <div class="check">
-          <strong>비급여 집계 기준</strong>
-          <p>진단서, 파스, 기타수익, 선수납, 환불, 미수금을 인센 산정에서 어떻게 처리할지 확인.</p>
-        </div>
+        <h2>공유용 요약</h2>
+        <span class="note">상단의 요약 복사 버튼으로 이 내용을 복사합니다.</span>
       </div>
       <pre id="copyOutput" class="copy-output"></pre>
     </section>
   </main>
 
   <footer>
-    공개 법령/행정해석 기준으로 체크리스트를 만들었으며, 최종 적용은 노무사 검토 후 확정해야 합니다. 계산은 내부 의사결정용 단순 모델입니다.
+    계산은 내부 의사결정용 단순 모델입니다.
   </footer>
   </div>
 
@@ -816,14 +790,15 @@
 
     function summaryText(state) {
       const tier30Revenue = visitRevenueIncrease(30, state);
-      const tier30Net = tier30Revenue - 90 - state.fixedIncrease;
+      const tier30Pool = state.visitPoolStep * 3;
+      const tier30Net = tier30Revenue - tier30Pool - state.fixedIncrease;
       const customPool = noncoveredPool(state.customNoncovered, state);
       return [
         "경덕 직원 급여/인센 계산 요약",
         "",
         `고정급: 현재 ${fmtM(state.currentFixed, 0)} -> 3.5인 ${fmtM(state.newFixed, 0)} / 증가 ${fmtM(state.fixedIncrease, 0)}`,
         `환수 인센: 주당 일평균 24/27/30/33/36/39명 = 월 풀 ${state.visitPoolStep}/${state.visitPoolStep * 2}/${state.visitPoolStep * 3}/${state.visitPoolStep * 4}/${state.visitPoolStep * 5}/${state.visitPoolStep * 6}만원`,
-        `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 ${fmtM(state.visitPoolStep * 3, 0)}과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
+        `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 ${fmtM(tier30Pool, 0)}과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
         `비급여 인센: ${fmtM(state.noncoveredBaseline, 0)} 초과분의 ${(state.noncoveredRate * 100).toFixed(0)}%, 월 ${fmtM(state.reviewThreshold, 0)} 이상이면 기준 재점검`,
         `검토 비급여 ${fmtM(state.customNoncovered, 0)} 기준 인센 풀 ${fmtM(customPool, 1)}`
       ].join("\n");
