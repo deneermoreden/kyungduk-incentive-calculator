@@ -418,22 +418,18 @@
   <main>
     <section>
       <div class="section-head">
+        <h2>결과 요약</h2>
+        <span class="note">가장 먼저 볼 값입니다. 변수 변경 시 바로 갱신됩니다.</span>
+      </div>
+      <div class="summary" id="summaryMetrics"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
         <h2>변수</h2>
-        <span class="note">이 값만 바꾸면 전체 계산이 갱신됩니다.</span>
+        <span class="note">정책 판단에 필요한 최소 변수만 남겼습니다.</span>
       </div>
       <div class="grid">
-        <div>
-          <label for="salaryYun">윤지은 현재 월급</label>
-          <input id="salaryYun" type="number" value="290" step="1">
-        </div>
-        <div>
-          <label for="salaryKim">김경숙 현재 월급</label>
-          <input id="salaryKim" type="number" value="300" step="1">
-        </div>
-        <div>
-          <label for="salaryIm">임미자 현재 월급</label>
-          <input id="salaryIm" type="number" value="320" step="1">
-        </div>
         <div>
           <label for="salaryCut">기존 직원 1인 감액</label>
           <input id="salaryCut" type="number" value="20" step="1">
@@ -443,16 +439,8 @@
           <input id="newStaffSalary" type="number" value="150" step="1">
         </div>
         <div>
-          <label for="baseDailyVisits">현재 일평균 방문</label>
-          <input id="baseDailyVisits" type="number" value="22.8" step="0.1">
-        </div>
-        <div>
-          <label for="insuredArpu">급여 방문 객단가 원</label>
-          <input id="insuredArpu" type="number" value="41574" step="1">
-        </div>
-        <div>
-          <label for="monthDays">월 환산 일수</label>
-          <input id="monthDays" type="number" value="30" step="1">
+          <label for="visitPoolStep">환수 3명 증가당 풀</label>
+          <input id="visitPoolStep" type="number" value="30" step="5">
         </div>
         <div>
           <label for="noncoveredBaseline">비급여 기준선</label>
@@ -463,15 +451,10 @@
           <input id="noncoveredRate" type="number" value="10" step="1">
         </div>
         <div>
-          <label for="reviewThreshold">비급여 재점검 기준</label>
-          <input id="reviewThreshold" type="number" value="4000" step="100">
-        </div>
-        <div>
           <label for="customNoncovered">검토할 월 비급여</label>
           <input id="customNoncovered" type="number" value="2200" step="50">
         </div>
       </div>
-      <div class="summary" id="summaryMetrics"></div>
     </section>
 
     <section>
@@ -615,40 +598,29 @@
       }
     }
 
-    const defaults = {
+    const constants = {
       salaryYun: 290,
       salaryKim: 300,
       salaryIm: 320,
-      salaryCut: 20,
-      newStaffSalary: 150,
       baseDailyVisits: 22.8,
       insuredArpu: 41574,
       monthDays: 30,
+      reviewThreshold: 4000,
+      visitStart: 24,
+      visitStep: 3,
+      visitCount: 6
+    };
+
+    const defaults = {
+      salaryCut: 20,
+      newStaffSalary: 150,
+      visitPoolStep: 30,
       noncoveredBaseline: 2000,
       noncoveredRate: 10,
-      reviewThreshold: 4000,
       customNoncovered: 2200
     };
 
-    const visitTiers = [
-      { visits: 24, pool: 30 },
-      { visits: 27, pool: 60 },
-      { visits: 30, pool: 90 },
-      { visits: 33, pool: 120 },
-      { visits: 36, pool: 150 },
-      { visits: 39, pool: 180 }
-    ];
-
     const noncoveredScenarios = [1800, 2000, 2200, 2500, 3000, 3500, 4000, 5000];
-
-    const combinedScenarios = [
-      { name: "첫 허들", visits: 24, noncovered: 2000 },
-      { name: "목표 1", visits: 27, noncovered: 2100 },
-      { name: "목표 2", visits: 30, noncovered: 2200 },
-      { name: "목표 3", visits: 33, noncovered: 2500 },
-      { name: "목표 4", visits: 36, noncovered: 3000 },
-      { name: "목표 5", visits: 39, noncovered: 4000 }
-    ];
 
     const workdayShare = {
       fullTime: 5 / 18,
@@ -676,7 +648,7 @@
     }
 
     function inputs() {
-      const salaries = [n("salaryYun"), n("salaryKim"), n("salaryIm")];
+      const salaries = [constants.salaryYun, constants.salaryKim, constants.salaryIm];
       const currentFixed = salaries.reduce((sum, value) => sum + value, 0);
       const adjustedExisting = currentFixed - n("salaryCut") * 3;
       const newFixed = adjustedExisting + n("newStaffSalary");
@@ -686,14 +658,31 @@
         adjustedExisting,
         newFixed,
         fixedIncrease,
-        baseDailyVisits: n("baseDailyVisits"),
-        insuredArpu: n("insuredArpu"),
-        monthDays: n("monthDays"),
+        baseDailyVisits: constants.baseDailyVisits,
+        insuredArpu: constants.insuredArpu,
+        monthDays: constants.monthDays,
+        visitPoolStep: n("visitPoolStep"),
         noncoveredBaseline: n("noncoveredBaseline"),
         noncoveredRate: n("noncoveredRate") / 100,
-        reviewThreshold: n("reviewThreshold"),
+        reviewThreshold: constants.reviewThreshold,
         customNoncovered: n("customNoncovered")
       };
+    }
+
+    function visitTiers(state) {
+      return Array.from({ length: constants.visitCount }, (_, index) => ({
+        visits: constants.visitStart + constants.visitStep * index,
+        pool: state.visitPoolStep * (index + 1)
+      }));
+    }
+
+    function combinedScenarios(state) {
+      const noncovered = [2000, 2100, 2200, 2500, 3000, 4000];
+      return visitTiers(state).map((tier, index) => ({
+        name: index === 0 ? "첫 허들" : `목표 ${index}`,
+        visits: tier.visits,
+        noncovered: noncovered[index] || state.noncoveredBaseline
+      }));
     }
 
     function visitRevenueIncrease(visits, state) {
@@ -710,17 +699,18 @@
 
     function renderSummary(state) {
       const customPool = noncoveredPool(state.customNoncovered, state);
-      const tier30 = visitTiers.find(tier => tier.visits === 30);
+      const tiers = visitTiers(state);
+      const tier30 = tiers.find(tier => tier.visits === 30) || tiers[2];
       const visit30Revenue = visitRevenueIncrease(30, state);
       const net30 = visit30Revenue - tier30.pool - state.fixedIncrease;
       const items = [
-        { label: "현재 고정급", value: fmtM(state.currentFixed, 0), tone: "" },
-        { label: "3.5인 고정급", value: fmtM(state.newFixed, 0), tone: "warn" },
-        { label: "고정급 증가", value: fmtM(state.fixedIncrease, 0), tone: state.fixedIncrease > 0 ? "warn" : "good" },
         { label: "30명 달성 후 잔여", value: fmtM(net30, 1), tone: net30 >= 0 ? "good" : "warn" },
-        { label: "비급여 검토값", value: fmtM(state.customNoncovered, 0), tone: "" },
+        { label: "3.5인 고정급 증가", value: fmtM(state.fixedIncrease, 0), tone: state.fixedIncrease > 0 ? "warn" : "good" },
         { label: "비급여 인센 풀", value: fmtM(customPool, 1), tone: "" },
         { label: "주5 직원 1인 배분", value: fmtM(customPool * workdayShare.fullTime, 1), tone: "" },
+        { label: "현재 고정급", value: fmtM(state.currentFixed, 0), tone: "" },
+        { label: "3.5인 고정급", value: fmtM(state.newFixed, 0), tone: "warn" },
+        { label: "환수 3명당 풀", value: fmtM(state.visitPoolStep, 0), tone: "" },
         { label: "주3 직원 1인 배분", value: fmtM(customPool * workdayShare.partTime, 1), tone: "" }
       ];
 
@@ -733,9 +723,14 @@
     }
 
     function renderConstants(state) {
+      const tiers = visitTiers(state);
       const rows = [
-        ["환수 구간", "24/27/30/33/36/39명", "주당 일평균 실제 방문"],
-        ["환수 풀", "30/60/90/120/150/180만원", "3.5인 전체 월 인센 풀"],
+        ["직원 현재 월급", `윤지은 ${constants.salaryYun} / 김경숙 ${constants.salaryKim} / 임미자 ${constants.salaryIm}만원`, "주6일 기준 고정값"],
+        ["현재 일평균 방문", `${constants.baseDailyVisits}명`, "12주차 대시보드 기준"],
+        ["급여 방문 객단가", `${constants.insuredArpu.toLocaleString("ko-KR")}원`, "보험수입 / 실제 방문"],
+        ["월 환산 일수", `${constants.monthDays}일`, "월 매출 증가 환산"],
+        ["환수 구간", tiers.map(tier => `${tier.visits}`).join("/") + "명", "주당 일평균 실제 방문"],
+        ["환수 풀", tiers.map(tier => `${tier.pool}`).join("/") + "만원", "3.5인 전체 월 인센 풀"],
         ["비급여 기준선", fmtM(state.noncoveredBaseline, 0), "초과분만 인센 계산"],
         ["비급여 지급률", fmtPct(state.noncoveredRate * 100), "초과분 기준"],
         ["비급여 재점검", fmtM(state.reviewThreshold, 0), "기준선/원가율/제외항목 확인"],
@@ -751,7 +746,7 @@
     }
 
     function renderVisitTiers(state) {
-      document.getElementById("visitTierBody").innerHTML = visitTiers.map(tier => {
+      document.getElementById("visitTierBody").innerHTML = visitTiers(state).map(tier => {
         const revenue = visitRevenueIncrease(tier.visits, state);
         const afterIncentive = revenue - tier.pool;
         const afterFixed = afterIncentive - state.fixedIncrease;
@@ -787,20 +782,20 @@
       }).join("");
     }
 
-    function incentivePoolForVisits(visits) {
+    function incentivePoolForVisits(visits, state) {
       let pool = 0;
-      for (const tier of visitTiers) {
+      for (const tier of visitTiers(state)) {
         if (visits >= tier.visits) pool = tier.pool;
       }
       return pool;
     }
 
     function renderScenarios(state) {
-      document.getElementById("scenarioBody").innerHTML = combinedScenarios.map(scenario => {
+      document.getElementById("scenarioBody").innerHTML = combinedScenarios(state).map(scenario => {
         const visitRevenue = visitRevenueIncrease(scenario.visits, state);
         const noncoveredIncrease = Math.max(0, scenario.noncovered - state.noncoveredBaseline);
         const revenueIncrease = visitRevenue + noncoveredIncrease;
-        const visitPool = incentivePoolForVisits(scenario.visits);
+        const visitPool = incentivePoolForVisits(scenario.visits, state);
         const noncoveredIncentive = noncoveredPool(scenario.noncovered, state);
         const totalIncentive = visitPool + noncoveredIncentive;
         const net = revenueIncrease - totalIncentive - state.fixedIncrease;
@@ -827,8 +822,8 @@
         "경덕 직원 급여/인센 계산 요약",
         "",
         `고정급: 현재 ${fmtM(state.currentFixed, 0)} -> 3.5인 ${fmtM(state.newFixed, 0)} / 증가 ${fmtM(state.fixedIncrease, 0)}`,
-        "환수 인센: 주당 일평균 24/27/30/33/36/39명 = 월 풀 30/60/90/120/150/180만원",
-        `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 90만원과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
+        `환수 인센: 주당 일평균 24/27/30/33/36/39명 = 월 풀 ${state.visitPoolStep}/${state.visitPoolStep * 2}/${state.visitPoolStep * 3}/${state.visitPoolStep * 4}/${state.visitPoolStep * 5}/${state.visitPoolStep * 6}만원`,
+        `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 ${fmtM(state.visitPoolStep * 3, 0)}과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
         `비급여 인센: ${fmtM(state.noncoveredBaseline, 0)} 초과분의 ${(state.noncoveredRate * 100).toFixed(0)}%, 월 ${fmtM(state.reviewThreshold, 0)} 이상이면 기준 재점검`,
         `검토 비급여 ${fmtM(state.customNoncovered, 0)} 기준 인센 풀 ${fmtM(customPool, 1)}`
       ].join("\n");
