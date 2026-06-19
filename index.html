@@ -376,6 +376,17 @@
 
       header {
         padding: 14px 12px;
+        position: static;
+      }
+
+      .header-inner {
+        gap: 10px;
+      }
+
+      .toolbar {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
       }
 
       .grid,
@@ -384,8 +395,86 @@
         grid-template-columns: 1fr;
       }
 
+      .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 12px;
+      }
+
+      .grid,
+      .summary {
+        padding: 12px;
+      }
+
+      .metric {
+        min-height: 0;
+        padding: 11px 12px;
+      }
+
+      .metric .value {
+        font-size: 20px;
+      }
+
       h1 {
         font-size: 19px;
+      }
+
+      .table-wrap {
+        overflow: visible;
+      }
+
+      table {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+        font-size: 13px;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody,
+      tr,
+      td {
+        display: block;
+        width: 100%;
+      }
+
+      tr {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      td {
+        min-height: 36px;
+        border-bottom: 1px solid #eef1f4;
+        padding: 8px 10px 8px 44%;
+        text-align: right;
+        white-space: normal;
+        position: relative;
+      }
+
+      td:last-child {
+        border-bottom: 0;
+      }
+
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        width: 38%;
+        color: var(--muted);
+        font-size: 12px;
+        text-align: left;
+      }
+
+      .copy-output {
+        font-size: 13px;
+        padding: 12px;
       }
     }
   </style>
@@ -449,10 +538,6 @@
         <div>
           <label for="noncoveredRate">비급여 초과분 지급률 %</label>
           <input id="noncoveredRate" type="number" value="10" step="1">
-        </div>
-        <div>
-          <label for="customNoncovered">검토할 월 비급여</label>
-          <input id="customNoncovered" type="number" value="2200" step="50">
         </div>
       </div>
     </section>
@@ -590,8 +675,7 @@
       newStaffSalary: 150,
       visitPoolStep: 30,
       noncoveredBaseline: 2000,
-      noncoveredRate: 10,
-      customNoncovered: 2200
+      noncoveredRate: 10
     };
 
     const noncoveredScenarios = [1800, 2000, 2200, 2500, 3000, 3500, 4000, 5000];
@@ -638,8 +722,7 @@
         visitPoolStep: n("visitPoolStep"),
         noncoveredBaseline: n("noncoveredBaseline"),
         noncoveredRate: n("noncoveredRate") / 100,
-        reviewThreshold: constants.reviewThreshold,
-        customNoncovered: n("customNoncovered")
+        reviewThreshold: constants.reviewThreshold
       };
     }
 
@@ -672,20 +755,21 @@
     }
 
     function renderSummary(state) {
-      const customPool = noncoveredPool(state.customNoncovered, state);
       const tiers = visitTiers(state);
       const tier30 = tiers.find(tier => tier.visits === 30) || tiers[2];
       const visit30Revenue = visitRevenueIncrease(30, state);
       const net30 = visit30Revenue - tier30.pool - state.fixedIncrease;
+      const noncovered2200 = noncoveredPool(2200, state);
+      const noncovered3000 = noncoveredPool(3000, state);
       const items = [
         { label: "30명 달성 후 잔여", value: fmtM(net30, 1), tone: net30 >= 0 ? "good" : "warn" },
         { label: "3.5인 고정급 증가", value: fmtM(state.fixedIncrease, 0), tone: state.fixedIncrease > 0 ? "warn" : "good" },
-        { label: "비급여 인센 풀", value: fmtM(customPool, 1), tone: "" },
-        { label: "주5 직원 1인 배분", value: fmtM(customPool * workdayShare.fullTime, 1), tone: "" },
+        { label: "비급여 2,200 인센", value: fmtM(noncovered2200, 1), tone: "" },
+        { label: "비급여 3,000 인센", value: fmtM(noncovered3000, 1), tone: "" },
         { label: "현재 고정급", value: fmtM(state.currentFixed, 0), tone: "" },
         { label: "3.5인 고정급", value: fmtM(state.newFixed, 0), tone: "warn" },
         { label: "환수 3명당 풀", value: fmtM(state.visitPoolStep, 0), tone: "" },
-        { label: "주3 직원 1인 배분", value: fmtM(customPool * workdayShare.partTime, 1), tone: "" }
+        { label: "비급여 기준선", value: fmtM(state.noncoveredBaseline, 0), tone: "" }
       ];
 
       document.getElementById("summaryMetrics").innerHTML = items.map(item => `
@@ -712,9 +796,9 @@
       ];
       document.getElementById("constantsBody").innerHTML = rows.map(row => `
         <tr>
-          <td>${row[0]}</td>
-          <td>${row[1]}</td>
-          <td>${row[2]}</td>
+          <td data-label="구분">${row[0]}</td>
+          <td data-label="값">${row[1]}</td>
+          <td data-label="의미">${row[2]}</td>
         </tr>
       `).join("");
     }
@@ -727,13 +811,13 @@
         const rate = tier.pool / revenue * 100;
         return `
           <tr>
-            <td>${tier.visits}명</td>
-            <td>${extraVisits(tier.visits, state).toFixed(0)}명</td>
-            <td>${fmtM(revenue)}</td>
-            <td>${fmtM(tier.pool, 0)}</td>
-            <td class="${signedClass(afterIncentive)}">${fmtM(afterIncentive)}</td>
-            <td class="${signedClass(afterFixed)}">${fmtM(afterFixed)}</td>
-            <td>${fmtPct(rate)}</td>
+            <td data-label="주당 일평균">${tier.visits}명</td>
+            <td data-label="월 추가 방문">${extraVisits(tier.visits, state).toFixed(0)}명</td>
+            <td data-label="급여매출 증가">${fmtM(revenue)}</td>
+            <td data-label="환수 인센 풀">${fmtM(tier.pool, 0)}</td>
+            <td data-label="인센 차감 후" class="${signedClass(afterIncentive)}">${fmtM(afterIncentive)}</td>
+            <td data-label="고정급까지 차감" class="${signedClass(afterFixed)}">${fmtM(afterFixed)}</td>
+            <td data-label="인센율">${fmtPct(rate)}</td>
           </tr>
         `;
       }).join("");
@@ -745,12 +829,12 @@
         const memo = amount >= state.reviewThreshold ? '<span class="pill">기준 재점검</span>' : "";
         return `
           <tr>
-            <td>${fmtM(amount, 0)}</td>
-            <td>${fmtM(Math.max(0, amount - state.noncoveredBaseline), 0)}</td>
-            <td>${fmtM(pool, 1)}</td>
-            <td>${fmtM(pool * workdayShare.fullTime, 1)}</td>
-            <td>${fmtM(pool * workdayShare.partTime, 1)}</td>
-            <td>${memo}</td>
+            <td data-label="월 비급여">${fmtM(amount, 0)}</td>
+            <td data-label="초과분">${fmtM(Math.max(0, amount - state.noncoveredBaseline), 0)}</td>
+            <td data-label="인센 풀">${fmtM(pool, 1)}</td>
+            <td data-label="주5 직원 1인">${fmtM(pool * workdayShare.fullTime, 1)}</td>
+            <td data-label="주3 직원 1인">${fmtM(pool * workdayShare.partTime, 1)}</td>
+            <td data-label="메모">${memo}</td>
           </tr>
         `;
       }).join("");
@@ -775,14 +859,14 @@
         const net = revenueIncrease - totalIncentive - state.fixedIncrease;
         return `
           <tr>
-            <td>${scenario.name}</td>
-            <td>${scenario.visits}명</td>
-            <td>${fmtM(scenario.noncovered, 0)}</td>
-            <td>${fmtM(visitPool, 0)}</td>
-            <td>${fmtM(noncoveredIncentive, 1)}</td>
-            <td>${fmtM(totalIncentive, 1)}</td>
-            <td>${fmtM(revenueIncrease, 1)}</td>
-            <td class="${signedClass(net)}">${fmtM(net, 1)}</td>
+            <td data-label="시나리오">${scenario.name}</td>
+            <td data-label="일평균">${scenario.visits}명</td>
+            <td data-label="비급여">${fmtM(scenario.noncovered, 0)}</td>
+            <td data-label="환수 인센">${fmtM(visitPool, 0)}</td>
+            <td data-label="비급여 인센">${fmtM(noncoveredIncentive, 1)}</td>
+            <td data-label="총 인센">${fmtM(totalIncentive, 1)}</td>
+            <td data-label="매출 증가">${fmtM(revenueIncrease, 1)}</td>
+            <td data-label="차감 후" class="${signedClass(net)}">${fmtM(net, 1)}</td>
           </tr>
         `;
       }).join("");
@@ -792,7 +876,7 @@
       const tier30Revenue = visitRevenueIncrease(30, state);
       const tier30Pool = state.visitPoolStep * 3;
       const tier30Net = tier30Revenue - tier30Pool - state.fixedIncrease;
-      const customPool = noncoveredPool(state.customNoncovered, state);
+      const noncovered2200 = noncoveredPool(2200, state);
       return [
         "경덕 직원 급여/인센 계산 요약",
         "",
@@ -800,7 +884,7 @@
         `환수 인센: 주당 일평균 24/27/30/33/36/39명 = 월 풀 ${state.visitPoolStep}/${state.visitPoolStep * 2}/${state.visitPoolStep * 3}/${state.visitPoolStep * 4}/${state.visitPoolStep * 5}/${state.visitPoolStep * 6}만원`,
         `일평균 30명 기준: 급여매출 증가 ${fmtM(tier30Revenue, 1)}, 환수 인센 ${fmtM(tier30Pool, 0)}과 고정급 증가 차감 후 ${fmtM(tier30Net, 1)}`,
         `비급여 인센: ${fmtM(state.noncoveredBaseline, 0)} 초과분의 ${(state.noncoveredRate * 100).toFixed(0)}%, 월 ${fmtM(state.reviewThreshold, 0)} 이상이면 기준 재점검`,
-        `검토 비급여 ${fmtM(state.customNoncovered, 0)} 기준 인센 풀 ${fmtM(customPool, 1)}`
+        `비급여 2,200만원 기준 인센 풀 ${fmtM(noncovered2200, 1)}`
       ].join("\n");
     }
 
